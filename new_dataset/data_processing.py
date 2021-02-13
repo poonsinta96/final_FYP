@@ -27,11 +27,10 @@ def process_csv(title):
     train_set = new_dataset[:train_rows]
     test_set = new_dataset[train_rows:]
 
-    os.mkdir(path+'/new_dataset/'+title)
+    os.mkdir(path+'/products/'+title)
 
-    np.savetxt(path+'/new_dataset/'+title+'/'+'train.csv', train_set,delimiter = ',',fmt='%f')
-    np.savetxt(path+'/new_dataset/'+title+'/'+'test.csv', test_set,delimiter = ',',fmt='%f')
-
+    np.savetxt(path+'/products/'+title+'/'+'train.csv', train_set,delimiter = ',',fmt='%f')
+    np.savetxt(path+'/products/'+title+'/'+'test.csv', test_set,delimiter = ',',fmt='%f')
 
 process_csv('STI')
 process_csv('DJI')

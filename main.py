@@ -13,15 +13,14 @@ import PySimpleGUI as sg
 import os.path
 
 def run_model(header):
-    
-    header = 'S&P 500'
+
     #Smoothen the dataset first
-    smoo('dataset/InputDataSet - S&P500_Train.txt', 'new_dataset/'+header+'/train_smoo.txt',20)#90 works well
-    smoo('dataset/InputDataSet - S&P500_Test.txt', 'new_dataset/'+header+'/test_smoo.txt',20)
+    smoo('products/'+header+'/train.csv', 'products/'+header+'/train_smoo.txt',30)#90 works well
+    smoo('products/'+header+'/test.csv', 'products/'+header+'/test_smoo.txt',30)
 
     #Extract train and test set
-    train_set = np.genfromtxt('new_dataset/'+header+'/train_smoo.txt', delimiter = '\t', skip_header=0)
-    test_set = np.genfromtxt('new_dataset/'+header+'/test_smoo.txt', delimiter = '\t', skip_header=6)
+    train_set = np.genfromtxt('products/'+header+'/train_smoo.txt', delimiter = '\t', skip_header=0)
+    test_set = np.genfromtxt('products/'+header+'/test_smoo.txt', delimiter = '\t', skip_header=6)
 
 
     #Dataset information
@@ -39,16 +38,17 @@ def run_model(header):
     for col in range(5):
         perc_train_set[:,col] = ((train_set[:,col+1]/train_set[:,col]) - 1) * 100
 
-    np.savetxt('new_dataset/'+header+'/train_smoo_perc.txt', perc_train_set,delimiter = ',',fmt='%f')
+    np.savetxt('products/'+header+'/train_smoo_perc.txt', perc_train_set,delimiter = ',',fmt='%f')
 
     perc_test_set = np.zeros(test_rows*5).reshape(test_rows,5)
     for col in range(5):
         perc_test_set[:,col] = ((test_set[:,col+1]/test_set[:,col]) - 1) * 100
 
-    np.savetxt('new_dataset/'+header+'/test_smoo_perc.txt', perc_test_set,delimiter = ',',fmt='%f')
+    np.savetxt('products/'+header+'/test_smoo_perc.txt', perc_test_set,delimiter = ',',fmt='%f')
 
 
     #print(perc_train_set)
+
 
     print()
     print("=================================This is the start of FALCON-AART=================================")
@@ -59,19 +59,20 @@ def run_model(header):
 
 
     #use the dataset of bull and bear condition 
-    bull_and_bear('dataset/InputDataSet - S&P500_Train.txt','new_dataset/'+header+'/train_smoo_perc.txt','new_dataset/'+header+'/train_smoo_perc_bb.txt')
+    turning_arr = bull_and_bear('products/'+header+'/train.csv','products/'+header+'/train_smoo_perc.txt','products/'+header+'/train_smoo_perc_bb.txt')
 
-    bullbear_train_set = np.genfromtxt('new_dataset/'+header+'/train_smoo_perc_bb.txt', delimiter = ',', skip_header=0)
+    bullbear_train_set = np.genfromtxt('products/'+header+'/train_smoo_perc_bb.txt', delimiter = ',', skip_header=0)
 
-    model.train(bullbear_train_set,'dataset/InputDataSet - S&P500_Train.txt')
+    model.train(bullbear_train_set,'products/'+header+'/train.csv',header,turning_arr)
 
-    pickle.dump(model, open('saved_model','wb'))
-    model = pickle.load(open('saved_model', 'rb'))
+    pickle.dump(model, open('products/'+header+'/saved_model','wb'))
+    model = pickle.load(open('products/'+header+'/saved_model', 'rb'))
 
-    bullbear_test_set = np.genfromtxt('new_dataset/'+header+'/test_smoo_perc.txt', delimiter = ',', skip_header=0)
-    model.test(bullbear_test_set,'dataset/InputDataSet - S&P500_Test.txt')
+    bullbear_test_set = np.genfromtxt('products/'+header+'/test_smoo_perc.txt', delimiter = ',', skip_header=0)
+    model.test(bullbear_test_set,'products/'+header+'/test.csv',header)
 
     #model.visualise()
+
 
 
     ################################################## THIS IS FOR GUI ##################################################
@@ -97,6 +98,7 @@ def run_model(header):
         ]
     ]
 
+
     window = sg.Window("Fuzzy Complimentary Learning System", layout)
 
     while True:
@@ -110,3 +112,17 @@ def run_model(header):
 
     window.close()
     """
+
+#run_model('old')
+#doesnt work : DJI, GSPC
+#work: FTSE
+
+#run_model('GSPC') 
+#run_model('DJI') 
+#run_model('FTSE') 
+#run_model('HSI') 
+#run_model('IXIC') 
+#run_model('N225') 
+run_model('STI') 
+
+

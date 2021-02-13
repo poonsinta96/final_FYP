@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import copy
 
 def smoo(basic_address,save_address, smoothen_factor):
-    dataset = np.genfromtxt(basic_address, delimiter = '\t', skip_header=6)
+    dataset = np.genfromtxt(basic_address, delimiter = ',')
 
 
     smoothen_factor = smoothen_factor #60

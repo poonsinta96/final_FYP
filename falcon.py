@@ -178,7 +178,7 @@ class Falcon:
 
             return firing_strength
 
-    def train(self, train_set, original_add):
+    def train(self, train_set, original_add,header, turning_arr):
         x_train = train_set[:, :-(self.op+1)]
         y_train = train_set[:, self.ip:-(self.op)]
         bullbear_train= train_set[:, -1]
@@ -189,7 +189,7 @@ class Falcon:
         #x_train[2,2] = 2000 #just for simlutaion
         #y_train[2,0] = 300
         #training loop - should be 14588
-        limit = 14588
+        limit = len(x_train)
         iter = 0
         while  iter < limit:
             print('ITER :', iter)
@@ -464,6 +464,8 @@ class Falcon:
                 z_total = 0
                 for mz_pair in z4_bull:
                     z_total += mz_pair[1]
+
+                print(z4_bull)
                 for stream_index in range(len(z4_bull)):
 
                     rule_cell = self.layer3[stream_index].get(z3[stream_index][0],0)
@@ -510,13 +512,9 @@ class Falcon:
                     old_ans = m_cur * z_ratio
                     rule_cell.learn(ideal_ans, old_ans,z_total,real_ans)
 
-            print("backprapogation completed")
-
-                  
+            print("backprapogation completed")       
             #print space for next line
-
             iter += 1
-
             print()
 
 
@@ -532,7 +530,7 @@ class Falcon:
         ax.plot(bb_signal, color ='yellow')
         ax.plot(bb_arr, color ='red')
         
-        for x_val in [10, 2990, 3129, 4729, 5121, 5760, 6246, 7748, 8176, 9451, 9523, 12742, 13367, 14529, 14577] :
+        for x_val in turning_arr :
             ax.axvline(x=x_val)
 
         ax.set_xlabel('days')
@@ -540,12 +538,13 @@ class Falcon:
 
         #to plot the main graph
         ax2=ax.twinx()
-        train_set = np.genfromtxt(original_add, delimiter = '\t', skip_header=6)
+        train_set = np.genfromtxt(original_add, delimiter = ',')
         series = train_set[:,0]
 
         ax2.plot(series,color = 'orange')
         ax2.set_ylabel('Actual Price',color = 'orange')
-        plt.savefig('train_results.png')
+        plt.title(header+'_TRAIN')
+        plt.savefig('products/'+header+'/train_results.png')
         plt.show()
 
         # testing to see how well it matches the train sets
@@ -553,12 +552,33 @@ class Falcon:
         #self.test(bullbear_test_set, bb_signal)
         
     
-    def test(self, test_set,original_add):
+    def test(self, test_set,original_add,header):
         print()
         print("=================================This is the testing phase ====================================")
         print()
 
-        smoothen_factor= 20
+        train_set = np.genfromtxt(original_add, delimiter = ',', skip_header=0)
+
+        #money-simulation: for effectiveness rating purposes
+        init_fund = 10000
+        penalty = 15
+        share = 0
+        #market actions
+        actions = []
+        if self.bullbear_index > 0.5:
+            market = 1
+            fund = init_fund - 15
+            px = train_set[0,5]
+            share = init_fund/px
+            fund = 0
+            actions.append('BUY '+ str(share) + 'share@' + str(px))
+        else:
+            market = 0
+            fund = init_fund
+
+
+        #start of algo
+        smoothen_factor= 30
 
         bb_arr =[]
         real_ans_arr = []
@@ -566,12 +586,10 @@ class Falcon:
         x_test = test_set[:, :-(self.op)]
         y_test = test_set[:, self.ip:]
 
-
         limit = len(y_test)
-        iter = 20
+        iter = smoothen_factor
         while  iter < limit:
             print(iter)
-
             #feeding data to LAYER ONE 
             z1_list = []
             x_list = []
@@ -667,9 +685,7 @@ class Falcon:
                     z4_bear.append([m,z])
 
             bear_ans = self.layer5[0].defuzzify(z4_bear)
-
-            real_ans = sum(y_test[iter-smoothen_factor:iter, 0])/smoothen_factor
-
+            real_ans = y_test[iter,0]
             print( bear_ans,bull_ans, real_ans )
 
            #Comparison of values
@@ -694,7 +710,7 @@ class Falcon:
                 momentum_coeff = self.bull_cell.win()
                 self.bear_cell.lose()
 
-                bull_bear_change = magnitude_coeff * momentum_coeff 
+                bull_bear_change = magnitude_coeff * momentum_coeff /20
                 self.bullbear_index += bull_bear_change
 
                 if self.bullbear_index > 1 :
@@ -714,7 +730,7 @@ class Falcon:
                 momentum_coeff = self.bear_cell.win()
                 self.bull_cell.lose()
 
-                bull_bear_change = magnitude_coeff * momentum_coeff 
+                bull_bear_change = magnitude_coeff * momentum_coeff /20
                 self.bullbear_index  -= bull_bear_change
 
                 if self.bullbear_index < 0 :
@@ -726,13 +742,41 @@ class Falcon:
 
             bb_arr.append(self.bullbear_index)
 
+            #money-simulation
+            if market == 1 and self.bullbear_index < 0.5:
+                px = train_set[iter,5]
+                money = share*px
+                fund = money - 15
+                actions.append('SOLD'+str(share) + '@ $' + str(px) + ', Value:' + str(fund))
+                market = 0
+                share = 0
+
+            if market == 0 and self.bullbear_index > 0.5:
+                px = train_set[iter,5]                
+                fund = fund - 15
+                share = init_fund/px
+                actions.append('BUY' + str(share) + '@ $' + str(px) + ', Value:' + str(fund))
+
+                market = 1
+                fund = 0
+                
+
+
+                
 
 
             print("")
             iter += 1
         
         print(bb_arr)
-        
+
+        px = train_set[iter,5]                
+        fund = fund + share * px
+
+        print(actions)
+        print('FINAL AMOUNT IS: ', fund, '   % CHANGE:', ((fund - 10000)/10000)*100 , '%')
+        print('Stock % change= ', (train_set[iter,5] - train_set[0,5]) / train_set[0,5] *100)
+
         #plot the signal data
         fig, ax = plt.subplots()
 
@@ -744,13 +788,16 @@ class Falcon:
 
         #to plot the main graph
         ax2=ax.twinx()
-        train_set = np.genfromtxt(original_add, delimiter = '\t', skip_header=6)
         series = train_set[:,0]
 
         ax2.plot(series,color = 'orange')
         ax2.set_ylabel('Actual Price',color = 'orange')
-        plt.savefig('test_results.png')
+        plt.title(header+'_TEST')
+        plt.savefig('products/'+header+'/test_results.png')
         plt.show()
+
+
+
 
     def visualise(self):
         graph = Digraph(comment='CLS-Visualisation', format='png',

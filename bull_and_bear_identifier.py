@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import copy
 
 def bull_and_bear(basic_address, sec_address,save_address):
-    train_set = np.genfromtxt(basic_address, delimiter = '\t', skip_header=6)
+    train_set = np.genfromtxt(basic_address, delimiter = ',')
 
     series = train_set[:,0]
 
@@ -53,6 +53,7 @@ def bull_and_bear(basic_address, sec_address,save_address):
 
     turning_arr.append(first_anchor_index)
     turning_arr.append(second_anchor_index)
+    turning_arr.pop()
     print(turning_arr)
 
     #convert into number 
@@ -100,9 +101,11 @@ def bull_and_bear(basic_address, sec_address,save_address):
     #print(old_dataset)
     bullbear = np.array(bull_or_bear)
     new_dataset= np.column_stack((old_dataset, bullbear))
-    print(new_dataset)
+    #print(new_dataset)
 
     np.savetxt(save_address, new_dataset,delimiter = ',',fmt='%f')
+
+    return turning_arr
 
 #bull_and_bear('dataset/InputDataSet - S&P500_Train.txt','dataset/S&P500Perc_train(smoo).txt','dataset/S&P500Perc_WITH_BullOrBear_train(smoo).txt')
 

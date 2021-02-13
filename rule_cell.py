@@ -13,7 +13,7 @@ class Rule_cell:
         self.x = cluster_indexes[:ip_size]
         self.y = cluster_indexes[ip_size:]
 
-        self.reliability = 0.1
+        self.reliability = 1
         self.age = 0
         self.learning_rate =0
 
@@ -64,19 +64,18 @@ class Rule_cell:
 
         print(self.label, self.reliability)
 
-    def learn(self,ideal_ans, old_ans,z_total,real_ans):
+    def learn(self,ideal_ans, old_ans,z_t,real_ans):
         age = self.age
         age = age + 1
 
-        lr = 1/(1+math.exp(-8 * (-0.05*age+0.5)))*0.9 + 0.05 #mimck memory
-
+        lr = 1/(1+math.exp(-8 * (-0.05*age+0.5)))*0.98 + 0.01 #mimck memory
         self.learning_rate = lr
 
         #to prevent division of 0
         if real_ans == 0:
             real_ans += 0.01
 
-        r = max( (old_ans + lr*(ideal_ans-old_ans)) * z_total / real_ans , 0.000000001)
+        r = max( (old_ans + lr*(ideal_ans-old_ans))  / old_ans , 0.000000001)
 
         #print(r, old_ans, ideal_ans, lr, z_total,real_ans)
         self.reliability = r
