@@ -9,9 +9,17 @@ from rule_methods import rules_needed, create_compound_arr, rules_label
 
 import numpy as np
 import math
+import matplotlib
+matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
-from graphviz import Digraph
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import pickle
+import tkinter
+import time
+import tkinter.ttk as ttk
 
+
+from graphviz import Digraph
 
 class Falcon:
     def __init__(self, input_size, output_size):
@@ -34,6 +42,7 @@ class Falcon:
 
         self.bullbear_index = 0.5
 
+        self.z24_mid = []
     
     def vigilanceTest(self, clusters, x_or_y):
         #IGNORE - keep for future reference
@@ -550,12 +559,102 @@ class Falcon:
         # testing to see how well it matches the train sets
 
         #self.test(bullbear_test_set, bb_signal)
-        
     
+    def animation_string_l2(self, animation_str, z2_list):
+        ans1 = ''
+        ans2 = ''
+        connector = '-'
+        level = '2'
+
+        for stream_index in range(len(z2_list)):
+            for node_index in range(len(z2_list[stream_index])):
+                if z2_list[stream_index][node_index]> 0.1:
+                    to_add2 = level + connector + str(stream_index) + connector + str(node_index)
+                    ans2 += to_add2 + ','
+
+                    to_add1 = '1-'+str(stream_index)+'+'+to_add2
+                    ans1 += to_add1 + ','
+        
+        return animation_str + ans1[:-1] +'|' + ans2[:-1] + '|'
+
+    def animation_string_l234(self, animation_str, z3_list):
+        if animation_str.split('/')[0] == 'bear':
+            bb = 0
+        else:
+            bb = 1
+
+        ans2 = ''
+        for stream in z3_list:
+            rule_node = stream[bb]
+            if rule_node != '':
+                x_arr = rule_node.split('/')[1:-2]
+
+                node_x0 = '2-0-' + x_arr[0] + '+' +rule_node
+                
+                node_x1 = '2-1-' + x_arr[1]+ '+' +rule_node
+                
+                node_x2 = '2-2-' + x_arr[2]+ '+' +rule_node
+
+                node_x3 = '2-3-' + x_arr[3]+ '+' +rule_node
+                
+                ans2 += node_x0 +','+ node_x1 + ','+ node_x2 + ','+ node_x3 +','
+
+        animation_str += ans2[:-1] + '|'
+
+
+        ans3 = ''
+        for stream in z3_list:
+            if stream[bb] != '':
+                ans3 += stream[bb] + ','
+
+        animation_str += ans3[:-1] + '|'
+
+        ans3_4 = ''
+        ans4 = ''
+        ans4_5 = ''
+        for stream in z3_list:
+            rule_node = stream[bb]
+            if rule_node != '':
+                y_node = rule_node.split('/')[-2]
+
+
+                y_label =  '4-0-' + y_node 
+                connecter = rule_node + '+' + y_label
+                                
+                ans3_4 += connecter + ','
+                ans4 += y_label + ','
+                ans4_5 += y_label+ '+' +'5-0' + ','
+
+        animation_str += ans3_4[:-1] + '|' +ans4[:-1] + '|' +ans4_5[:-1]
+
+        return animation_str
+
+
+    def process_rule_data(self, row_data):
+        #this function take the fs and change it to fs percentile
+        sum = 0
+        for rule in row_data:
+            sum += rule[1]
+        
+        ans_data = []
+        for rule in row_data:
+            ans = rule[1] / sum * 100
+            formatted_ans = str(float("{:.1f}".format(ans))) + '%'
+
+            ans_data.append([rule[0],formatted_ans])
+        print(ans_data)
+        return ans_data
+
+
     def test(self, test_set,original_add,header):
         print()
         print("=================================This is the testing phase ====================================")
         print()
+
+        animation_data = []
+        gui_rule_data = [] 
+        processed_data = []
+
 
         train_set = np.genfromtxt(original_add, delimiter = ',', skip_header=0)
 
@@ -587,15 +686,22 @@ class Falcon:
         y_test = test_set[:, self.ip:]
 
         limit = len(y_test)
+        #limit = 500
         iter = smoothen_factor
         while  iter < limit:
+            
             print(iter)
             #feeding data to LAYER ONE 
             z1_list = []
             x_list = []
+
+            bull_rules_table_data = []
+            bear_rules_table_data = []
+
             for ip_num in range(len(self.layer1)):
-                x_smoo = sum(x_test[iter-smoothen_factor:iter, ip_num])/smoothen_factor
-                uv_list,z = self.layer1[ip_num].upward_flow_in(x_smoo)
+                #x_smoo = sum(x_test[iter-smoothen_factor:iter, ip_num])/smoothen_factor
+                x = x_test[iter,ip_num]
+                uv_list,z = self.layer1[ip_num].upward_flow_in(x)
                 z1_list += [uv_list]
                 x_list += [z]
             
@@ -665,6 +771,8 @@ class Falcon:
                     rule_cell = self.layer3[cell_index].get(z3[cell_index][0],0)###############
                     if rule_cell != 0:
                         z = rule_cell.fs
+                        bull_rules_table_data.append([rule_cell.label,rule_cell.fs])
+
                     else:
                         z = 0
                     z4_bull.append([m,z])
@@ -679,7 +787,7 @@ class Falcon:
                     rule_cell = self.layer3[cell_index].get(z3[cell_index][1],0)
                     if rule_cell != 0:
                         z = rule_cell.fs
-                        print(rule_cell.label,rule_cell.fs)
+                        bear_rules_table_data.append([rule_cell.label,rule_cell.fs])
                     else:
                         z = 0                    
                     z4_bear.append([m,z])
@@ -710,14 +818,17 @@ class Falcon:
                 momentum_coeff = self.bull_cell.win()
                 self.bear_cell.lose()
 
-                bull_bear_change = magnitude_coeff * momentum_coeff /20
+                bull_bear_change = magnitude_coeff * momentum_coeff /1.5
                 self.bullbear_index += bull_bear_change
 
                 if self.bullbear_index > 1 :
                     self.bullbear_index = 1
 
-                print('BULL WINS' , magnitude_coeff , momentum_coeff)
-
+                print('bull wins' , magnitude_coeff , momentum_coeff)
+                animation_string = 'bull|'
+                
+                gui_rule_data_row = self.process_rule_data(bull_rules_table_data)
+                gui_rule_data.append(gui_rule_data_row)
             #if bear condition wins            
             elif abs(diff_bull) > abs(diff_bear):
                 if real_ans < bear_ans:
@@ -730,13 +841,18 @@ class Falcon:
                 momentum_coeff = self.bear_cell.win()
                 self.bull_cell.lose()
 
-                bull_bear_change = magnitude_coeff * momentum_coeff /20
+                bull_bear_change = magnitude_coeff * momentum_coeff /1.5
                 self.bullbear_index  -= bull_bear_change
 
                 if self.bullbear_index < 0 :
                     self.bullbear_index = 0
 
                 print('bear wins' , magnitude_coeff , momentum_coeff)
+                animation_string = 'bear|'
+
+                gui_rule_data_row = self.process_rule_data(bear_rules_table_data)
+                gui_rule_data.append(gui_rule_data_row)
+
 
             print(self.bullbear_index, self.bear_cell.momentum_x, self.bull_cell.momentum_x)
 
@@ -761,9 +877,12 @@ class Falcon:
                 fund = 0
                 
 
-
+            animation_string = self.animation_string_l2(animation_string, z2_list)
+            animation_string = self.animation_string_l234(animation_string,z3)
                 
 
+            animation_data.append(animation_string)
+            processed_data.append([x_list,y_test[iter],bull_ans,bear_ans])
 
             print("")
             iter += 1
@@ -780,7 +899,7 @@ class Falcon:
         #plot the signal data
         fig, ax = plt.subplots()
 
-        ax.plot([x for x in range(smoothen_factor,limit)],bb_arr, color ='red')
+        ax.plot([x for x in range(smoothen_factor,limit)],bb_arr ,color ='grey')
         
 
         ax.set_xlabel('days')
@@ -788,15 +907,18 @@ class Falcon:
 
         #to plot the main graph
         ax2=ax.twinx()
-        series = train_set[:,0]
+        series = train_set[:limit,0]
 
         ax2.plot(series,color = 'orange')
         ax2.set_ylabel('Actual Price',color = 'orange')
         plt.title(header+'_TEST')
+        plt.tight_layout()
         plt.savefig('products/'+header+'/test_results.png')
-        plt.show()
+        
+        pickle.dump(fig, open('temp_test_results.pickle','wb'))
+        #plt.show()
 
-
+        return animation_data, gui_rule_data, processed_data
 
 
     def visualise(self):
@@ -896,3 +1018,347 @@ class Falcon:
         # #print(graph.source)
         g = graph.unflatten(stagger = 2)
         g.render('visualisation.gv', view= False)
+
+
+
+    #=============================THIS IS THE START OF ANIMATION=============================
+    
+    # The main window of the animation
+    def create_animation_window(self):
+        window = tkinter.Tk()
+        window.title("FALCON Animation Demo")
+        # Uses python 3.6+ string interpolation
+        window.geometry(f'{3000}x{1500}')
+        return window
+    
+    # Create a canvas for animation and add it to main window
+    def create_animation_canvas(self,window):
+        canvas = tkinter.Canvas(window,width = 850, height = 1000)
+        canvas.configure(bg="black")
+        #canvas.pack(fill="both", expand=True)
+        canvas.grid(row=0,column=0,rowspan=8, sticky="nswe")
+
+
+        return canvas
+        
+
+
+    #create the base model 
+    def start_animation(self,window,canvas,animation_data, gui_rule_data,processed_data):
+
+        #plot layer 1 nodes (1-0 to 1-4)
+        node_start_xpos = 100
+        # initial y position of the ball
+        node_start_ypos = 150
+        # radius of the ball
+        node_radius = 3
+
+        layer = '1'
+        connector = '-'
+        layer1_nodes = {}
+        for node in self.layer1:
+            node_name =layer+connector+str(node.stream)
+            layer1_nodes[node_name] = canvas.create_oval(node_start_xpos-node_radius,
+                node_start_ypos-node_radius,
+                node_start_xpos+node_radius,
+                node_start_ypos+node_radius,
+                fill="grey", outline="grey", width=2)
+            node_start_ypos += 100
+        
+
+
+        #plot layer 2 nodes (2-0-0 to 2-4-7) and layer 1 edge (1-4+2-4-7)
+        node_start_xpos = 200
+        # initial y position of the ball
+        node_start_ypos = 100
+        # radius of the ball
+        node_radius = 3
+        layer='2'
+        layer2_nodes = {}
+        layers_lines = {}
+        
+        layer1_cell_names = list(layer1_nodes.keys())
+        for stream_index in range(len(self.layer2)):
+            cluster_index=0
+            layer1_cell_name = layer1_cell_names[stream_index]
+            x1 = canvas.coords(layer1_nodes[layer1_cell_name])[2]
+            y1 = canvas.coords(layer1_nodes[layer1_cell_name])[3]
+            for node in self.layer2[stream_index]:
+                node_name =layer+connector+str(stream_index)+connector+str(cluster_index)
+
+                x2 = node_start_xpos-node_radius
+                y2 = node_start_ypos-node_radius
+                layer2_nodes[node_name] = canvas.create_oval(x2,y2,
+                node_start_xpos+node_radius,
+                node_start_ypos+node_radius,
+                fill="grey", outline="grey", width=2)
+
+                layers_lines[layer1_cell_name + '+' + node_name] = canvas.create_line(x1,y1,x2,y2, fill = 'grey')
+                node_start_ypos += 17
+                cluster_index+=1
+
+        #plot layer 5 nodes ( 5-0)
+        node_start_xpos = 700
+        # initial y position of the ball
+        node_start_ypos = 300
+        # radius of the ball
+        node_radius = 3
+
+        layer = '5'
+        connector = '-'
+        layer5_nodes = {}
+        for node in self.layer5:
+            node_name =layer+connector+str(node.stream)
+            layer5_nodes[node_name] = canvas.create_oval(node_start_xpos-node_radius,
+                node_start_ypos-node_radius,
+                node_start_xpos+node_radius,
+                node_start_ypos+node_radius,
+                fill="grey", outline="grey", width=2)
+            node_start_ypos += 100
+        
+        
+        #plot layer 4 nodes (4-0-0 to 4-0-5) and layer 4 edge (4-0-0+5_0)
+        node_start_xpos = 600
+        # initial y position of the ball
+        node_start_ypos = 150
+        # radius of the ball
+        node_radius = 3
+        layer='4'
+        layer4_nodes = {}
+        
+        layer5_cell_names = list(layer5_nodes.keys())
+        for stream_index in range(len(self.layer4)):
+            cluster_index=0
+            layer5_cell_name = layer5_cell_names[stream_index]
+            x2 = canvas.coords(layer5_nodes[layer5_cell_name])[0]
+            y2 = canvas.coords(layer5_nodes[layer5_cell_name])[1]
+            for node in self.layer4[stream_index]:
+                node_name =layer+connector+str(stream_index)+connector+str(cluster_index)
+
+                x1 = node_start_xpos+node_radius
+                y1 = node_start_ypos+node_radius
+                layer4_nodes[node_name] = canvas.create_oval(node_start_xpos-node_radius,
+                node_start_ypos-node_radius,
+                x1,y1,
+                fill="grey", outline="grey", width=2)
+
+                layers_lines[node_name + '+' + layer5_cell_name] = canvas.create_line(x1,y1,x2,y2, fill = 'grey')
+                node_start_ypos += 20
+                cluster_index+=1
+
+        #plot layer 3 nodes and edges
+        node_start_xpos = 400
+        # initial y position of the ball
+        node_start_ypos = 50
+        layer3_nodes = {}
+        node_radius = 1
+
+        for stream_index in range(len(self.layer3)):
+            #print(len(self.layer3[stream_index]))
+            for r_node in self.layer3[stream_index]:
+                x_back = node_start_xpos-node_radius
+                y_back = node_start_ypos-node_radius
+                x_front = node_start_xpos+node_radius
+                y_front = node_start_ypos+node_radius
+                
+                layer3_nodes[r_node] = canvas.create_oval(x_back,y_back,x_front,y_front,
+                fill="grey", outline="grey", width=1)
+                node_start_ypos += 1
+
+                node_composition_arr = r_node.split('/')[1:-1]
+                #print(node_composition_arr)
+
+                node_x0 = '2-0-' + node_composition_arr[0]
+                x1 = canvas.coords(layer2_nodes[node_x0])[2]
+                y1 = canvas.coords(layer2_nodes[node_x0])[3]
+                layers_lines[node_x0 + '+' + r_node] = canvas.create_line(x1,y1,x_back,y_back, fill = 'grey')
+
+
+                node_x1 = '2-1-' + node_composition_arr[1]
+                x1 = canvas.coords(layer2_nodes[node_x1])[2]
+                y1 = canvas.coords(layer2_nodes[node_x1])[3]
+                layers_lines[node_x1 + '+' + r_node] = canvas.create_line(x1,y1,x_back,y_back, fill = 'grey')
+
+                node_x2 = '2-2-' + node_composition_arr[2]
+                x1 = canvas.coords(layer2_nodes[node_x2])[2]
+                y1 = canvas.coords(layer2_nodes[node_x2])[3]
+                layers_lines[node_x2 + '+' + r_node] = canvas.create_line(x1,y1,x_back,y_back, fill = 'grey')
+
+                node_x3 = '2-3-' + node_composition_arr[3]
+                x1 = canvas.coords(layer2_nodes[node_x3])[2]
+                y1 = canvas.coords(layer2_nodes[node_x3])[3]
+                layers_lines[node_x3 + '+' + r_node] = canvas.create_line(x1,y1,x_back,y_back, fill = 'grey')
+
+                node_y = '4-0-' + node_composition_arr[4]
+                x2 = canvas.coords(layer4_nodes[node_y])[0]
+                y2 = canvas.coords(layer4_nodes[node_y])[1]
+                layers_lines[r_node  + '+' + node_y] = canvas.create_line(x_front,y_front,x2,y2, fill = 'grey')
+
+
+        #Button configuration
+
+        #window.update()
+        #window.mainloop()
+        def stop():  
+            tkinter.messagebox.showinfo("Operation Stopped", "Resume?")  
+
+
+        b = tkinter.Button(window,text = "PAUSE TO READ",command = stop,activeforeground = "red",activebackground = "pink",pady=10)  
+        #b.pack(side = "bottom")
+        b.grid(row=7,column=1,sticky="nswe")
+
+
+        tree = ttk.Treeview(window, columns = ('Firing Strength Percentile','x1_m','x2_m','x3_m','x4_m','y_m'),selectmode='browse')
+        
+
+
+        tree.heading('#0', text='Name of Rule')
+        tree.heading('#1', text='Firing Strength')
+        tree.heading('#2', text='x0_mid')
+        tree.heading('#3', text='x1_mid')
+        tree.heading('#4', text='x2_mid')
+        tree.heading('#5', text='x3_mid')
+        tree.heading('#6', text='y_mid')
+
+
+        tree.column('#0', width=220)
+        tree.column('#1', width=180)
+        tree.column('#2', width=60)
+        tree.column('#3', width=60)
+        tree.column('#4', width=60)
+        tree.column('#5', width=60)
+        tree.column('#6', width=60)
+
+        # vsb = ttk.Scrollbar(window, orient="vertical", command=tree.yview)
+        # vsb.grid(row=1,column=3,sticky="nswe")
+        # tree.configure(yscrollcommand=vsb.set)
+
+
+        #ANIMATION START
+        #Loop for visualisation animation
+        animation_lag = 0.1
+        current_x = 30
+        for animation_str in animation_data:
+            animation_arr = animation_str.split('|')
+            bb = animation_arr[0]
+            l1_arr = ['1-0','1-1','1-2','1-3']
+            l1_2_arr = animation_arr[1].split(',')
+            l2_arr= animation_arr[2].split(',')
+            l2_3_arr = animation_arr[3].split(',')
+            l3_arr = animation_arr[4].split(',')
+            l3_4_arr = animation_arr[5].split(',')
+            l4_arr = animation_arr[6].split(',')
+            l4_5_arr = animation_arr[7].split(',')
+            l5 = '5-0'
+
+            if animation_arr[0] == 'bear':
+                color = 'blue'
+            else:
+                color = 'red'
+
+            #plotting the test_result graph
+            fig = pickle.load(open('temp_test_results.pickle','rb'))
+
+            plt.axvline(x=current_x, color = color)
+            graph = FigureCanvasTkAgg(fig, window)
+            #graph.get_tk_widget().pack(side=tkinter.LEFT)
+            graph.get_tk_widget().grid(row=0,column=1,sticky="nswe")
+
+            iid = 0
+            
+            for rule in gui_rule_data[current_x-30]:
+                i1 = int(rule[0][5])
+                x1 = self.layer2[0][i1].get_mid()
+                i2 = int(rule[0][7])
+                x2 = self.layer2[1][i2].get_mid()
+                i3 = int(rule[0][9])
+                x3 = self.layer2[2][i3].get_mid()
+                i4 = int(rule[0][11])
+                x4 = self.layer2[3][i4].get_mid()
+                iy = int(rule[0][13])
+                y = self.layer4[0][iy].get_mid_simple()
+                tree.insert(parent='', index='end', iid=iid, text=rule[0], values=(rule[1],x1,x2,x3,x4,y))
+                iid += 1
+
+            tree.grid(row=1,column=1,sticky="ns")
+
+            title = tkinter.Label(window, text ="Processed Values", font = 'Helvetica 20 bold')
+            x = tkinter.Label(window, text ="EMA Percentage Change,X:     " + str(processed_data[current_x-30][0]), font = 'Helvetica 12', anchor="w", justify='right')
+            y = tkinter.Label(window, text ="EMA Percentage Change,Y:     " + str(processed_data[current_x-30][1]), font = 'Helvetica 12', anchor="w", justify='right')
+            bull = tkinter.Label(window, text ="Bull Predicted Value:     " + str(processed_data[current_x-30][2]), font = 'Helvetica 12', anchor="w", justify='right')
+            bear = tkinter.Label(window, text ="Bear Predicted Value:     " + str(processed_data[current_x-30][3]), font = 'Helvetica 12', anchor="w", justify='right')
+
+            title.grid(row=2,column=1, sticky="nswe")
+            x.grid(row=3,column=1, sticky="nswe")
+            y.grid(row=4,column=1, sticky="nswe")
+            bull.grid(row=5,column=1, sticky="nswe")
+            bear.grid(row=6,column=1, sticky="nswe")
+
+
+            current_x += 1
+
+
+
+            window.update() 
+            time.sleep(animation_lag)
+            for label in l1_arr:
+                canvas.itemconfig(layer1_nodes[label], fill = color, outline = color)
+            window.update() 
+            time.sleep(animation_lag)
+            for label in l1_2_arr:
+                canvas.itemconfig(layers_lines[label], fill = color)
+            for label in l2_arr:
+                canvas.itemconfig(layer2_nodes[label],fill = color, outline = color)
+            window.update() 
+            time.sleep(animation_lag)
+            for label in l2_3_arr:
+                canvas.itemconfig(layers_lines[label], fill = color)
+            for label in l3_arr:
+                canvas.itemconfig(layer3_nodes[label],fill = color, outline = color)
+            window.update() 
+            time.sleep(animation_lag)
+            for label in l3_4_arr:
+                canvas.itemconfig(layers_lines[label], fill = color)
+            for label in l4_arr:
+                canvas.itemconfig(layer4_nodes[label],fill = color, outline = color)
+            window.update() 
+            time.sleep(animation_lag)
+            for label in l4_5_arr:
+                canvas.itemconfig(layers_lines[label], fill = color)
+            canvas.itemconfig(layer5_nodes[l5], fill = color)
+            
+            
+            window.update() 
+            time.sleep(animation_lag+0.8)
+            color = 'grey'
+            for label in l1_arr:
+                canvas.itemconfig(layer1_nodes[label], fill = color, outline = color)
+            for label in l1_2_arr:
+                canvas.itemconfig(layers_lines[label], fill = color)
+            for label in l2_arr:
+                canvas.itemconfig(layer2_nodes[label],fill = color, outline = color)
+            for label in l2_3_arr:
+                canvas.itemconfig(layers_lines[label], fill = color)
+            for label in l3_arr:
+                canvas.itemconfig(layer3_nodes[label],fill = color, outline = color)
+            for label in l3_4_arr:
+                canvas.itemconfig(layers_lines[label], fill = color)
+            for label in l4_arr:
+                canvas.itemconfig(layer4_nodes[label],fill = color, outline = color)
+            for label in l4_5_arr:
+                canvas.itemconfig(layers_lines[label], fill = color)
+            canvas.itemconfig(layer5_nodes[l5], fill = color)
+
+            graph.get_tk_widget().pack_forget()     
+            tree.delete(*tree.get_children())
+
+
+
+
+    def animation(self,animation_data, gui_rule_data, processed_data):
+        # The actual execution starts here
+        animation_window = self.create_animation_window()
+        animation_canvas = self.create_animation_canvas(animation_window)
+
+        self.start_animation(animation_window,animation_canvas,animation_data, gui_rule_data,processed_data)
+        #animate_ball(animation_window,animation_canvas, animation_ball_min_movement, animation_ball_min_movement)

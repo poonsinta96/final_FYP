@@ -32,14 +32,13 @@ def process_csv(title):
     np.savetxt(path+'/products/'+title+'/'+'train.csv', train_set,delimiter = ',',fmt='%f')
     np.savetxt(path+'/products/'+title+'/'+'test.csv', test_set,delimiter = ',',fmt='%f')
 
-process_csv('STI')
 process_csv('DJI')
+process_csv('STI')
 process_csv('FTSE')
 process_csv('GSPC')
 process_csv('HSI')
 process_csv('IXIC')
 process_csv('N225')
-
 
 
 

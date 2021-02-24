@@ -1,7 +1,9 @@
 from __future__ import division, print_function
 import numpy as np
+
 import matplotlib.pyplot as plt
 import skfuzzy as fuzz
+
 
 from falcon import Falcon
 from smoothen_dataset import smoo
@@ -59,59 +61,24 @@ def run_model(header):
 
 
     #use the dataset of bull and bear condition 
-    turning_arr = bull_and_bear('products/'+header+'/train.csv','products/'+header+'/train_smoo_perc.txt','products/'+header+'/train_smoo_perc_bb.txt')
+    # turning_arr = bull_and_bear('products/'+header+'/train.csv','products/'+header+'/train_smoo_perc.txt','products/'+header+'/train_smoo_perc_bb.txt')
+    # bullbear_train_set = np.genfromtxt('products/'+header+'/train_smoo_perc_bb.txt', delimiter = ',', skip_header=0)
 
-    bullbear_train_set = np.genfromtxt('products/'+header+'/train_smoo_perc_bb.txt', delimiter = ',', skip_header=0)
+    # model.train(bullbear_train_set,'products/'+header+'/train.csv',header,turning_arr)
 
-    model.train(bullbear_train_set,'products/'+header+'/train.csv',header,turning_arr)
-
-    pickle.dump(model, open('products/'+header+'/saved_model','wb'))
+    # pickle.dump(model, open('products/'+header+'/saved_model','wb'))
     model = pickle.load(open('products/'+header+'/saved_model', 'rb'))
 
     bullbear_test_set = np.genfromtxt('products/'+header+'/test_smoo_perc.txt', delimiter = ',', skip_header=0)
-    model.test(bullbear_test_set,'products/'+header+'/test.csv',header)
+    animation_data, gui_rule_data, processed_data = model.test(bullbear_test_set,'products/'+header+'/test.csv',header)
 
     #model.visualise()
 
 
-
-    ################################################## THIS IS FOR GUI ##################################################
-    """
-    image_and_input_interface = [
-        [sg.Text("Training has completed."), sg.Button('Results')],
-        [sg.Image(key = "-IMAGE-")],
-        [sg.InputText(), sg.InputText(),sg.InputText(),sg.InputText(),sg.Submit()]
-    ]
-
-    output_interface =[
-        [sg.Image(key="train_results.png")],
-
-        [sg.Text("-TOUT-")]
-    ]
-
-    # ----- Full layout -----
-    layout = [
-        [
-            sg.Column(image_and_input_interface),
-            sg.VSeperator(),
-            sg.Column(output_interface)
-        ]
-    ]
+    model.animation(animation_data,gui_rule_data, processed_data)
 
 
-    window = sg.Window("Fuzzy Complimentary Learning System", layout)
 
-    while True:
-        event,values = window.read()
-        [print(event,values)]
-        if event == 'Results':
-            window["-IMAGE-"].update('visualisation.gv.png')
-            window["-TOUT-"].update('TOP RULES: BULL/0/1/2/3/1')
-        if event == sg.WIN_CLOSED:
-            break
-
-    window.close()
-    """
 
 #run_model('old')
 #doesnt work : DJI, GSPC

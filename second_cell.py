@@ -88,6 +88,10 @@ class Second_cell:
     def get_uv(self):
         return self.u, self.v
 
+    def get_mid(self):
+        ans = (self.u + self.v) / 2
+        return float("{:.2f}".format(ans))
+
     def get_cur_maxi(self):
         return self.cur_maxi
 
