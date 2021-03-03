@@ -17,7 +17,7 @@ def bull_and_bear(basic_address, sec_address,save_address):
     turning_arr = []
     current_condition = 'null'
 
-    for y in range(smoothen_balancer, len(series)):
+    for y in range(smoothen_balancer, len(series)-smoothen_balancer):
         x = y - smoothen_balancer
         smoo = sum(series[x:y+smoothen_balancer])/smoothen_factor
         smoothen.append(smoo)
@@ -53,6 +53,7 @@ def bull_and_bear(basic_address, sec_address,save_address):
 
     turning_arr.append(first_anchor_index)
     turning_arr.append(second_anchor_index)
+    turning_arr.append(len(series))
     turning_arr.pop()
     print(turning_arr)
 
@@ -70,7 +71,12 @@ def bull_and_bear(basic_address, sec_address,save_address):
     condition = 1
     index = 15
     cur_turn = turning_arr.pop(0)
-    nex_turn = turning_arr.pop(0)
+    try: 
+        nex_turn = turning_arr.pop(0)
+    except:
+
+        nex_turn = len(series)
+    
 
     for index in range(index, len(series)):
         if index != nex_turn:

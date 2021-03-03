@@ -686,7 +686,7 @@ class Falcon:
         y_test = test_set[:, self.ip:]
 
         limit = len(y_test)
-        #limit = 500
+        #limit = 100
         iter = smoothen_factor
         while  iter < limit:
             
@@ -818,7 +818,7 @@ class Falcon:
                 momentum_coeff = self.bull_cell.win()
                 self.bear_cell.lose()
 
-                bull_bear_change = magnitude_coeff * momentum_coeff /1.5
+                bull_bear_change = magnitude_coeff * momentum_coeff 
                 self.bullbear_index += bull_bear_change
 
                 if self.bullbear_index > 1 :
@@ -841,7 +841,7 @@ class Falcon:
                 momentum_coeff = self.bear_cell.win()
                 self.bull_cell.lose()
 
-                bull_bear_change = magnitude_coeff * momentum_coeff /1.5
+                bull_bear_change = magnitude_coeff * momentum_coeff 
                 self.bullbear_index  -= bull_bear_change
 
                 if self.bullbear_index < 0 :

@@ -19,7 +19,7 @@ def process_csv(title):
         end = index + 6
         ans.append(series[start:end].tolist())
     
-    train_rows = round(0.8 * len(series))
+    train_rows = round(0.95 * len(series))
     test_rows = len(series) - train_rows
 
     new_dataset = np.array(ans)
@@ -32,13 +32,17 @@ def process_csv(title):
     np.savetxt(path+'/products/'+title+'/'+'train.csv', train_set,delimiter = ',',fmt='%f')
     np.savetxt(path+'/products/'+title+'/'+'test.csv', test_set,delimiter = ',',fmt='%f')
 
-process_csv('DJI')
-process_csv('STI')
-process_csv('FTSE')
-process_csv('GSPC')
-process_csv('HSI')
-process_csv('IXIC')
-process_csv('N225')
+# process_csv('DJI')
+# process_csv('STI')
+# process_csv('FTSE')
+# process_csv('GSPC')
+# process_csv('HSI')
+# process_csv('IXIC')
+# process_csv('N225')
 
+process_csv('ETF-AGG')
+process_csv('ETF-SPY')
+process_csv('ETF-VGK')
+process_csv('ETF-VWO')
 
 

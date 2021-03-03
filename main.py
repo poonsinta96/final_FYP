@@ -61,12 +61,12 @@ def run_model(header):
 
 
     #use the dataset of bull and bear condition 
-    # turning_arr = bull_and_bear('products/'+header+'/train.csv','products/'+header+'/train_smoo_perc.txt','products/'+header+'/train_smoo_perc_bb.txt')
-    # bullbear_train_set = np.genfromtxt('products/'+header+'/train_smoo_perc_bb.txt', delimiter = ',', skip_header=0)
+    turning_arr = bull_and_bear('products/'+header+'/train.csv','products/'+header+'/train_smoo_perc.txt','products/'+header+'/train_smoo_perc_bb.txt')
+    bullbear_train_set = np.genfromtxt('products/'+header+'/train_smoo_perc_bb.txt', delimiter = ',', skip_header=0)
 
-    # model.train(bullbear_train_set,'products/'+header+'/train.csv',header,turning_arr)
+    model.train(bullbear_train_set,'products/'+header+'/train.csv',header,turning_arr)
 
-    # pickle.dump(model, open('products/'+header+'/saved_model','wb'))
+    pickle.dump(model, open('products/'+header+'/saved_model','wb'))
     model = pickle.load(open('products/'+header+'/saved_model', 'rb'))
 
     bullbear_test_set = np.genfromtxt('products/'+header+'/test_smoo_perc.txt', delimiter = ',', skip_header=0)
@@ -86,10 +86,15 @@ def run_model(header):
 
 #run_model('GSPC') 
 #run_model('DJI') 
-#run_model('FTSE') 
-#run_model('HSI') 
-#run_model('IXIC') 
+#run_model('FTSE') #win sample 
+#run_model('HSI')  #loss sample
+#run_model('IXIC')  #loss sample
 #run_model('N225') 
-run_model('STI') 
+#run_model('STI') 
+
+#run_model('ETF-AGG') #bullbear error
+#run_model('ETF-SPY')
+run_model('ETF-VGK') #animation error #loss as well
+#run_model('ETF-VWO') #
 
 
